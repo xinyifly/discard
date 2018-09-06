@@ -9,13 +9,16 @@ module Discard
   module Model
     extend ActiveSupport::Concern
 
+    UNDISCARDED = 0
+    DISCARDED = 1
+
     included do
       class_attribute :discard_column
-      self.discard_column = :discarded_at
+      self.discard_column = :status
 
       scope :kept, ->{ undiscarded }
-      scope :undiscarded, ->{ where(discard_column => nil) }
-      scope :discarded, ->{ where.not(discard_column => nil) }
+      scope :undiscarded, ->{ where(discard_column => UNDISCARDED) }
+      scope :discarded, ->{ where.not(discard_column => UNDISCARDED) }
       scope :with_discarded, ->{ unscope(where: discard_column) }
 
       define_model_callbacks :discard
@@ -65,7 +68,7 @@ module Discard
 
     # @return [Boolean] true if this record has been discarded, otherwise false
     def discarded?
-      self[self.class.discard_column].present?
+      self[self.class.discard_column] != UNDISCARDED
     end
 
     # Discard the record in the database
@@ -74,7 +77,7 @@ module Discard
     def discard
       return if discarded?
       run_callbacks(:discard) do
-        update_attribute(self.class.discard_column, Time.current)
+        update_attribute(self.class.discard_column, DISCARDED)
       end
     end
 
@@ -96,7 +99,7 @@ module Discard
     def undiscard
       return unless discarded?
       run_callbacks(:undiscard) do
-        update_attribute(self.class.discard_column, nil)
+        update_attribute(self.class.discard_column, UNDISCARDED)
       end
     end
 
